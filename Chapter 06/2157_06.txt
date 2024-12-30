@@ -1,0 +1,113 @@
+index=nexa_new_products ProductY
+
+index=nexa_products_sales “Code=B”earliest=-30d@d latest=@d
+
+index=nexa_new_products ProductY earliest=-30d@d latest=@d | stats count
+
+index=nexa_new_products ProductY user_group="premium" earliest=-30d@d latest=@d | stats count
+
+index=nexa_new_products ProductY user_group="premium" earliest=-30d@d latest=@d | stats count by user_region
+
+
+------------------------------------------
+
+search error_code=404
+index=nexa_new_products
+... | stats count by product_name
+... | timechart count by product_type
+... | eval total_price = quantity * price
+... | fields + user_id, product_name
+... | table user_id, product_name, total_price
+... | sort - total_price
+... | rex field=_raw "user=(?P<username>\w+)"
+... | dedup user_id
+... | top product_type
+... | rare feature_name
+... | head 10
+... | [ search ... ] | join type=inner userId [ search ... ]
+... | lookup user_lookup userId as userId OUTPUT username
+... | chart count over product_name by region
+... | transaction user_id startswith=login endswith=logout
+... | spath input=details path=product_name
+... | mvexpand product_list
+... | addinfo
+---------------------------------------------
+
+index=nexa_server_logs "Error 500" | timechart count by hour 
+
+index=nexa_product_enquiries earliest=-30d@d latest=@d | stats count by product_name | sort - count | head 10 
+
+index=nexa_product_reviews | eval average_rating = total_rating / number_of_reviews | table product_name, average_rating 
+
+index=nexa_feedback | eval feedback_type = case(contains(feedback, "excellent"), "Positive", contains(feedback, "poor"), "Negative", true(), "Neutral") 
+
+index=nexa_product_browsing [ search index=nexa_purchases purchase=false | fields user_id ] 
+
+index=nexa_product_reviews | stats avg(rating) as avgRating, count(rating) as reviewCount by product_name | where reviewCount >= 50 AND avgRating > 4.5 
+----------------------------------------------------
+
+index=nexa_logs product="NexaSecure" 
+
+index=nexa_sales product="NexaSecure" | timechart sum(sales_amount) as Daily_Sales 
+
+index=nexa_feedback product="NexaCloud" earliest=-3mon@mon latest=@mon 
+
+index=nexa_feedback product="NexaCloud" earliest=-3mon@mon latest=@mon (feedback_theme="performance" OR feedback_theme="pricing" OR feedback_theme="support") 
+
+index=nexa_feedback product="NexaCloud" earliest=-3mon@mon latest=@mon (feedback_theme="performance" OR feedback_theme="pricing" OR feedback_theme="support") | timechart count by feedback_theme  
+
+index=nexa_sales product="NexaSecure" | timechart sum(sales_amount) as Monthly_Sales 
+
+index=nexatech_sales | stats avg(sale_price) as AvgSalePrice 
+index=nexatech_weblogs | stats distinct_count(visitor_ID) as UniqueVisitors 
+index=nexatech_sales | stats stdev(sale_price) as SalesVariability 
+index=nexatech_sales | stats median(sale_price) as MedianSalePrice 
+
+------------------------------------------------------
+
+index=server_logs [search index=server_logs cpu_usage>90 | return clientip] event_type="user_login_failure"|table clientip
+
+index=access_logs event="unauthorized" | join type=inner userId [ search index=user_profiles | table userId, department] | stats count by department | sort - count 
+
+-------------------------------------------------
+
+index=nexatech_ecommerce | stats count by user_id, event_type 
+
+index=nexatech_ecommerce | transaction user_id startswith="view" endswith=" addtocart" maxspan=1h 
+
+index=nexatech_ecommerce | transaction user_id maxspan=1h | where event_type="add_to_cart" AND NOT event_type="purchase" 
+
+---------------------------------------------------
+
+index=nexatech_app_logs | timechart count by event_type 
+
+index=nexatech_performance sourcetype=cpu_usage | eval week=if(_time < relative_time(now(), "-1w@w6"), "Last week", "This week") | timechart avg(cpu_percentage) by week 
+
+index=nexatech_errors | bucket span=30m _time | stats count by _time 
+
+index=nexatech_event sourcetype=registration_logs | timechart count by month | eval growth_rate = (this_month - last_month) / last_month * 100 
+
+index=nexatech_errors | rex "Error occurred: (?<error_description>.+?) due to" 
+
+index=nexatech_sales | lookup product_lookup productId OUTPUT productName 
+
+---------------------------------------------------
+index=nexatech_logs earliest=-1h latest=now() "error code" 
+
+index=nexatech_logs log_type=error 
+
+index=nexatech_logs source=*error* 
+
+index=nexatech_logs source=server_error_log 
+
+[index=nexatech_logs sourcetype=web_logs] [search user=admin] 
+
+index=nexatech_logs department_id=004 \
+
+index=nexatech_logs rt=-5m@m 
+
+index=nexatech_logs error | stats count by error_type 
+
+index=nexatech_logs earliest=-1h@h latest=@h 
+
+

@@ -1,0 +1,41 @@
+#serverclass.conf 
+[serverClass:windows_forwarders]
+whitelist.0 = <universal_forwarder_ip:8089>
+[serverClass:linux_forwarders]
+whitelist.0 = <universal_forwarder_ip:8089>
+
+#inputs.conf windows
+monitor://C:\Windows\System32\LogFiles\] 
+disabled = false 
+index = windows_logs 
+sourcetype = windows_system_logs
+
+#inputs.conf Linux
+[monitor:///var/log/]
+disabled = false
+index = linux_logs 
+sourcetype = linux_system_logs
+
+------------------
+serverclass.conf:
+[serverClass:windows_forwarders:app:windows_configs] 
+[serverClass:linux_forwarders:app:linux_configs]
+
+deploymentclient.conf :
+[target-broker:deploymentServer] 
+targetUri = <DeploymentServerHostname>:8089
+
+
+----------------------
+server.conf :
+[shclustering] 
+pass4SymmKey = yoursecuritykey
+
+./splunk init shcluster-config -auth <username>:<password> -mgmt_uri <deployer_URI>:<management_port> -replication_port <replication_port> -replication_factor <n> -conf_deploy_fetch_url <deployer_URI>:<management_port> -secret <security_key> -shcluster_label <label> 
+
+splunk apply shcluster-bundle -target <SearchHeadMember>:<management_port> -auth <username>:<password>
+
+
+
+
+

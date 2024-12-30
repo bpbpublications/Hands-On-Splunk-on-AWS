@@ -1,0 +1,198 @@
+mkdir SplunkDocker 
+cd SplunkDocker
+notepad Dockerfile.
+use touch Dockerfile
+
+
+# Use the official Splunk Enterprise image as a parent image 
+FROM splunk/splunk:latest 
+
+# Accept Splunk License Agreement 
+ENV SPLUNK_START_ARGS="--accept-license" 
+
+# Set the admin password  
+ENV SPLUNK_PASSWORD=<your-password>
+
+docker build -t splunk_custom . 
+
+aws ecr get-login-password --region <your-region> | docker login --username AWS --password-stdin your-account-id.dkr.ecr. <your-region>.amazonaws.com
+
+docker tag <local-splunk-docker-image>:latest <your-account-id>.dkr. <your-region>-1.amazonaws.com/<ecr-repo-name>:latest
+
+docker push your-account-id.dkr.ecr.<your-region>.amazonaws.com/splunk-repo:latest
+
+----------------------------
+eksctl create cluster
+--name splunk-eks-cluster
+--version 1.21
+--region eu-north-1
+--nodegroup-name splunk-node-group
+--node-type t3.medium
+--nodes 3
+--nodes-min 1
+--nodes-max 4
+--with-oidc
+--ssh-access
+--ssh-public-key splunk-key
+
+
+kubectl config get-contexts
+kubectl config use-context <context_name>:cluster/<eks-cluster-name>
+aws eks --region <region-code> update-kubeconfig --name <cluster-name>
+
+
+app.py:
+
+from flask import Flask
+import logging
+app = Flask(__name__)
+@app.route('/')
+def home():
+    app.logger.info("Home page accessed")
+    return "Hello, Splunk from EKS!"
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    app.run(host='0.0.0.0', port=5000)
+
+dockerFile:
+
+FROM python:3.8-slim
+WORKDIR /app
+COPY . /app
+RUN pip install Flask
+EXPOSE 5000
+CMD ["python", "app.py"]
+
+
+docker build -t python-app .
+docker tag python-app:latest <your-account-id>.dkr.<your-region>-1.amazonaws.com/python-repo:latest
+docker push <your-account-id>.dkr.<your-region>-1.amazonaws.com/python-repo
+
+
+python-sample-app.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: python-app
+        image: <your-account-id>.dkr.<your-region>-1.amazonaws.com/python-repo:latest
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-app-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 5000
+  selector:
+    app: python-app
+
+
+----------------------
+Fluent Bit ConfigMap:
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: logging
+  labels:
+    k8s-app: fluent-bit
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush        1
+        Daemon       Off
+        Log_Level    info
+        Parsers_File parsers.conf
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*.log
+        Parser            docker
+        Tag               kube.*
+        Mem_Buf_Limit     5MB
+        Skip_Long_Lines   On
+    [OUTPUT]
+        Name            splunk
+        Match           *
+        Host            <Your_Splunk_IP_or_Hostname>
+        Port            <Your_HEC_Port>
+        Splunk_Token    <Your_HEC_Token>
+        TLS             Off
+        TLS.Verify      Off
+
+
+kubectl create namespace logging
+kubectl apply -f https://raw.githubusercontent.com/fluent/fluent-bit-kubernetes-logging/master/fluent-bit-service-account.yaml
+kubectl apply -f fluent-bit-role-1.22.yaml
+kubectl apply -f fluent-bit-role-binding-1.22.yaml
+
+
+fluent-bit-role-1.22.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list", "watch"]
+
+fluent-bit-role-binding-1.22.yaml
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluentd-role
+subjects:
+- kind: ServiceAccount
+  name: fluent-bit
+  namespace: logging
+
+
+kubectl apply -f fluent-bit-config.yaml
+kubectl apply -f <path-to-your-fluent-bit-ds.yaml>
+kubectl get pods -n logging
+kubectl logs -n logging <fluent-bit-pod-name>
+--------------------------------
+
+index=aws_ci_cd sourcetype=aws:codebuild build_status=FAILED.
+index=main sourcetype=mysourcetype error_code=500
+
+
+alert_action.sh:
+#!/bin/bash 
+# Script to log Splunk alert details 
+ALERT_NAME=$1 
+ALERT_TRIGGER_TIME=$2 
+LOG_FILE="/var/log/splunk_alerts.log" 
+echo "Alert '$ALERT_NAME' triggered at $ALERT_TRIGGER_TIME" >> $LOG_FILE 
+
+
+chmod +x /usr/local/bin/alert_action.sh 
+
+alert_action.sh "$NAME" "$TIME" 
+

@@ -1,0 +1,70 @@
+ssh -i /path/to/your-key.pem ec2-user@your-instance-public-dns 
+
+sudo apt-get update 
+
+sudo apt install docker.io 
+
+sudo systemctl start docker 
+sudo systemctl enable docker 
+
+sudo usermod -aG docker ${USER} 
+
+docker --version 
+
+docker run hello-world 
+
+----------------------------
+
+#create the /etc/docker/daemon.json file
+{ "hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"] } 
+
+
+sudo systemctl daemon-reload 
+sudo systemctl restart docker.service 
+
+
+-------------------
+
+sudo cp /lib/systemd/system/docker.service /etc/systemd/system/ 
+sudo sed -i 's/\ -H\ fd:\/\///g' /etc/systemd/system/docker.service 
+sudo systemctl daemon-reload 
+sudo systemctl restart docker 
+sudo systemctl status docker 
+docker run hello-world 
+---------------------------------
+
+Feedback 
+"Love the new update; everything is faster and smoother!"
+"Good app, but crashes occasionally on my phone."
+"Excellent customer service; my issue was resolved quickly."
+"Happy with my purchase. Would recommend to friends!"
+"Found the interface a bit confusing as a new user."
+"The latest version is quite buggy. Disappointed!"
+"Great value for the money. I'm very satisfied."
+"Support was helpful, but wait times are too long."
+"Installation was a breeze. Intuitive design."
+"Missing some key features that competitors offer."
+"Overall, a solid product, but could use some improvements."
+"Fantastic experience! This app has everything I need."
+"Would be perfect if not for the occasional lag."
+"Not what I was expecting based on the description. Returning it."
+"Customer support is outstanding! Went above and beyond."
+"A bit pricey for what it offers."
+"Love the user-friendly interface. Very easy to navigate."
+"Updates are frequent and useful. Keeps getting better."
+"Product failed after a few months; poor quality."
+"Service is decent, but the product didn't meet my needs." 
+
+
+| inputlookup customer_feedback | fit MLTKContainer algo=spacy_sentiment epochs=100 feedback into app:spacy_sentiment_model as sentiment 
+
+----------------------------------
+
+Text 
+"John is a good guy; Tamal needs improvement with respect to his performance."
+"Sarah bought 2 tickets to Paris for $400."
+"Microsoft announced a new partnership with SpaceX to improve satellite connectivity."
+"John Doe will speak at the technology conference in San Francisco next month."
+"The Great Wall of China stretches over 13,000 miles."
+
+| inputlookup entity_recognition_data | fit MLTKContainer algo=spacy_ner epochs=100 text into app:spacy_entity_extraction_model as extracted | table * | makemv extracted_0 delim="|" | stats count as Entity_Count by extracted_0 | rex field=extracted_0 "(?<Entity>.*)\:(?<Entity_Type>.*)" | eventstats count as Entity_Type_Count by Entity_Type | sort - Entity_Count | table extracted_0, Entity, Entity_Count, Entity_Type, Entity_Type_Count 

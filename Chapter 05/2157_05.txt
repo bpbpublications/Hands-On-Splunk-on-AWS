@@ -1,0 +1,77 @@
+ssh -i <your-private-key.pem> ec2-user@<master-node-ip>
+cd $SPLUNK_HOME/etc/manager-apps/_cluster/local/ <your-app-name>
+
+#$SPLUNK_DB is located at $SPLUNK_HOME/var/lib/splunk
+[nexa_weblogs] 
+homePath = $SPLUNK_DB/nexa_weblogs/db 
+coldPath = $SPLUNK_DB/nexa_weblogs/colddb 
+thawedPath = $SPLUNK_DB/nexa_weblogs/thaweddb 
+repFactor=auto
+
+
+[nexa_transactions] 
+homePath = $SPLUNK_DB/nexa_transactions/db 
+coldPath = $SPLUNK_DB/nexa_transactions/colddb 
+thawedPath = $SPLUNK_DB/nexa_transactions/thaweddb
+repFactor=auto
+
+
+cd $SPLUNK_HOME/bin/
+./splunk apply cluster-bundle
+
+
+Splunk show cluster-bundle-status
+
+----------------------------------------------------
+
+cd $SPLUNK_HOME/bin
+sudo ./splunk add forward-server <heavy_forwarder_ip>:9997 -auth admin:your_password 
+
+#Modify or create $SPLUNK_HOME/etc/system/local/inputs.conf to specify what data the UF should monitor:
+[monitor:///home/ec2-user/logfiles/nexa_weblogs/web/logs/*.log] 
+disabled = false 
+index = nexa_transactions 
+sourcetype = web_access
+cd $SPLUNK_HOME/bin
+sudo ./ splunk restart 
+
+#Define the indexer cluster Peer nodes
+cd $SPLUNK_HOME/bin
+sudo ./splunk add forward-server <indexer1_ip>:9997 -auth admin:your_password 
+sudo ./splunk add forward-server <indexer2_ip>:9997 -auth admin:your_password 
+sudo ./splunk add forward-server <indexer3_ip>:9997 -auth admin:your_password
+
+
+#Load balancing configuration
+cd $SPLUNK_HOME/bin
+sudo ./splunk edit outputs -useACK true
+
+#Modify or add the following to $SPLUNK_HOME/etc/system/local/outputs.conf
+[tcpout] 
+defaultGroup = default-autolb-group 
+useACK = true 
+[tcpout:default-autolb-group] 
+server = <indexer1_ip>:9997, <indexer1_ip>:9997, <indexer1_ip>:9997
+autoLBFrequency = 30
+
+
+cd $SPLUNK_HOME/bin
+sudo ./ splunk restart
+
+---------------------------------------
+props.conf:
+[web_access]
+MAX_TIMESTAMP_LOOKAHEAD = 128
+REPORT-access = nexa_webfields
+SHOULD_LINEMERGE = False
+TIME_PREFIX = \[
+
+transforms.conf:
+[nexa_webfields]
+REGEX = ^(\d{1,3}(?:\.\d{1,3}){3}) - - \[(.*?)\]
+FORMAT = client_ip=$1 timestamp=$2
+
+$SPLUNK_HOME/bin/splunk restart
+
+-----------------------------------------
+index=nexatech_data sourcetype=web_access

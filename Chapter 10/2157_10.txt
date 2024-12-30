@@ -1,0 +1,112 @@
+Script example:
+import splunk.Intersplunk 
+import datetime 
+def categorize_time(timestamp):
+hour = timestamp.hour 
+if 6 <= hour < 12: 
+return 'Morning' 
+elif 12 <= hour < 18:
+return 'Afternoon' 
+else:
+return 'Evening' 
+try:
+results, dummyresults, settings = splunk.Intersplunk.getOrganizedResults() 
+for result in results: 
+if 'timestamp' in result:
+time_obj = datetime.datetime.strptime(result['timestamp'], '%Y-%m-%d %H:%M:%S') 
+result['time_segment'] = categorize_time(time_obj)
+splunk.Intersplunk.outputResults(results) except
+Exception as e: 
+splunk.Intersplunk.generateErrorResults(f"Error: {str(e)}") 
+
+
+commands.conf :
+[timesegment]
+filename = timesegment.py
+supports_getinfo = true 
+supports_streaming = true 
+
+| timesegment timestamp_field.
+---------------------------------------------------
+System-generated sample sales log (sales_log.csv):
+2023-03-15 08:32:01, transaction_id=1001, product_id=P123, sale_amount=150
+2023-03-15 09:47:23, transaction_id=1002, product_id=P124, sale_amount=200
+2023-03-16 11:05:45, transaction_id=1003, product_id=P125, sale_amount=300
+2023-03-16 14:20:30, transaction_id=1004, product_id=P123, sale_amount=250
+2023-03-17 16:45:10, transaction_id=1005, product_id=P124, sale_amount=350
+
+Product information lookup table (product_info.csv):
+product_id, product_name, category
+P123, Widget A, Electronics
+P124, Gadget B, Home Appliances
+P125, Device C, Electronics
+
+
+index="sales" | lookup product_lookup.csv product_id OUTPUT product_name, category | table transaction_id, product_id, product_name, category, sale_amount, _time
+
+----------------------------------------
+
+Define the macro: search index=sales earliest=-1d@d latest=@d | top limit=$arg1$ product_id
+
+Example Search Query Using the Macro:
+`top_daily_sales(5)` 
+
+
+1.	Macro for regional sales:
+	Name: sales_by_region
+	Definition: search index=sales | stats sum(sale_amount) as total_sales by region
+2.	Using the regional sales macro:
+	`sales_by_region` 
+
+
+-----------------------------
+
+2023-03-15 08:32:01, INFO: User 101 performed a login, result: success
+2023-03-15 09:47:23, ERROR: User 102 attempted a logout, result: failure, error_code: E102 ... 
+
+index="server_logs"
+
+| rex "User (?<user_id>\d+)"
+| rex "performed a (?<activity>\w+)"
+| rex "performed a (?<activity>\w+)"
+| rex "error_code: (?<error_code>\w+)"
+
+index="server_logs" | rex field=_raw "User (?<user_id>\d+)\s+performed\s+a\s+(?<activity>\w+),\s+result:\s+(?<result>\w+),\s+error_code:\s+(?<error_code>.*)" 
+
+--------------------------------------
+
+2023-03-15 08:32:01, transaction_id=1001, product_id=P123, sale_amount=150
+2023-03-15 09:47:23, transaction_id=1002, product_id=P124, sale_amount=200 ... 
+
+
+index="sales" earliest=-1w@w 
+
+index="sales" earliest=-2w@w| bin _time span=1w | stats sum(sale_amount) as weekly_sales by _time | streamstats current=f window=1 last(weekly_sales) as previous_week_sales 
+
+---------------------------
+| Pivot CustomerInteraction PageVisit count(PageVisit) AS "Count of PageVisit" values(host) AS "Distinct Values of host" values(source) AS "Distinct Values of source" values(sourcetype) AS "Distinct Values of sourcetype".
+
+---------------------------
+2023-03-15 08:32:01, user_id=101, action=page_visit, status=200
+2023-03-15 08:33:23, user_id=102, action=page_visit, status=500 ... 
+
+
+index="web_logs" action=page_visit | stats count as page_visits by _time span=1h
+
+--------------------------
+
+index="web_logs" status=500 | stats count as error_count by _time span=1h
+
+-------------------------
+2023-03-15 08:32:01, transaction_id=1001, user_id=501, action=purchase, amount=300
+2023-03-15 08:33:45, transaction_id=1002, user_id=501, action=purchase, amount=450
+2023-03-15 08:59:10, transaction_id=1003, user_id=501, action=return, transaction_ref=1001 ... 
+
+index="transactions" | transaction user_id startswith=action="purchase" endswith=action="return" | where duration < 1800 
+
+index="transactions" | transaction user_id | stats  count(eval(action="purchase")) as num_purchases, count(eval(action="return")) as num_returns, sum(amount) as total_amount | where num_purchases > 3 AND num_returns > 1
+
+
+
+
+

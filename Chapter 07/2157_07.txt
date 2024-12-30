@@ -1,0 +1,111 @@
+#An excerpt from a classic web server log appears as follows:
+192.168.1.101 - - [22/Oct/2023:14:58:59 +0000] "GET /index.html HTTP/1.1" 200 5123 "http://www.nexatech.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 192.168.1.102 - - [22/Oct/2023:14:59:01 +0000] "POST /login.php HTTP/1.1" 401 2140 "http://www.nexatech.com/login" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 192.168.1.103 - - [22/Oct/2023:14:59:05 +0000] "GET /products.html HTTP/1.1" 200 6521 "http://www.nexatech.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" 
+
+
+# CustomAppLog 
+# Format: TransactionID|Timestamp|Module|Status|Description|UserData TXID12345|22/Oct/2023:14:58:59|AuthModule|Success|User Authenticated|UserID=101;Location=US;Device=Mobile TXID12346|22/Oct/2023:14:59:01|OrderModule|Failed|Payment Error|UserID=102;Location=UK;Device=Desktop TXID12347|22/Oct/2023:14:59:05|ProfileModule|Success|Profile Updated|UserID=103;Location=CA;Device=Tablet 
+---------------------------------------------
+
+#Field extractions in transforms.conf:
+[custom_app_log_extraction]
+REGEX = ^(?<transaction_id>\w+)\|(?<timestamp>.+?)\|(?<module>\w+)\|(?<status>\w+)\|(?<description>.+?)\|UserID=(?<user_id>\d+);Location=(?<location>\w+);Device=(?<device>\w+) 
+Format = transaction_id::$1 timestamp::$2 module::$3 status::$4 description::$5
+user_id::$6 location::$7 device::$8 
+
+#Linking source type with transform rule in props.conf:
+[source::/path/to/nexatech/custom_app/logs/*]
+TRANSFORMS-custom_app_logs = custom_app_log_extraction 
+
+index="nexatech_custom" sourcetype="custom_app_logs"
+-----------------------------------------------------------------
+
+props.conf file:
+[sourcetype_name] 
+EXTRACT-fieldname = regex_pattern 
+[sourcetype_name] 
+DELIMS = "," FIELDS = "field1", "field2", "field3" 
+
+... | rex field=_raw "(?i)field_name=(?<field_name>[^ ]+)" 
+
+transforms.conf :
+[field_extraction_name] 
+REGEX = regex_pattern FORMAT = field_name::$1 
+
+props.conf:
+[sourcetype_name] 
+REPORT-extraction_name = field_extraction_name 
+
+props.conf:
+[sourcetype_name] KV_MODE = auto 
+
+
+... | spath input=field_name path=subfield_name 
+
+... | eval new_field=existing_field + "extra_data"
+
+----------------------------------------------------------------
+
+[INFO] [04/Nov/2023:12:45:32] User: JohnDoe, Action: LOGIN, Status: SUCCESS, Device: Mobile [INFO] [04/Nov/2023:12:50:23] User: Alice, Action: PURCHASE, Status: FAILED, Device: Desktop [INFO] [04/Nov/2023:12:51:10] User: Bob, Action: UPDATE_PROFILE, Status: SUCCESS, Device: Tablet 
+
+index="sample_logs" sourcetype="sample_log_source" 
+
+index="sample_logs" sourcetype="sample_log_source" User="JohnDoe" Action="LOGIN" 
+
+--------------------------------------------
+
+... | eval <new_field> = <expression> 
+... | eval tax = price * 0.07 
+... | eval full_name = first_name . " " . last_name 
+... | eval response_category = if(response_time > 5000, "Slow", "Fast") 
+
+... | rename <old_field_name> AS <new_field_name> 
+... | rename usr_id AS user_id 
+
+... | replace <old_value> WITH <new_value> IN <field> 
+... | replace "NA" WITH "Not Available" IN status 
+
+... | convert <conversion_type>(<field>) 
+... | convert ctime(_time) 
+
+... | eval new_field = coalesce(field1, field2, ...) 
+... | eval message = coalesce(error_message, info_message) 
+
+
+
+
+------------------------------------
+
+timestamp="2023-10-23 14:15:02", product_id="P123", user_id="U456", base_price=100, discount=10, location="US", payment_status="Completed"
+timestamp="2023-10-23 14:20:10", product_id="P124", user_id="U457", base_price=120, discount=5, location="CA", payment_status="Pending"
+timestamp="2023-10-23 14:24:45", product_id="P123", user_id="U458", base_price=100, discount=20, location="US", payment_status="Failed" ... 
+
+... | eval final_price = base_price - discount 
+
+... | eval price_category = case( final_price < 50, "Low-Value", final_price <= 100, "Mid-Value", final_price > 100, "High-Value" ) 
+
+... | eval payment_summary = product_id . " - " . payment_status 
+
+----------------------------------------
+
+timestamp=2023-10-21 14:15:23, user_id=4512, uri_path="/product/cloudStorage", status=200 
+index="nexatech_web" sourcetype="web_access" | timechart count by uri_path 
+
+timestamp=2023-10-21 14:15:23, user_id=4512, uri_path="/product/teamChat", status=200 
+index="nexatech_web" sourcetype="web_access" | top uri_path 
+
+timestamp=2023-10-21, product="cloudSuite", sales=324 
+index="nexatech_sales" | timechart sum(sales) as total_sales | trendline sma5(total_sales) as trend 
+
+timestamp=2023-10-21 14:15:23, error="Failed to allocate memory", module="backend_server" 
+index="nexatech_errors" | cluster t=0.8 field=error 
+
+timestamp=2023-10-21 14:15:23, bytes_used=45234, server_id="S12" 
+index="nexatech_network" | timechart sum(bytes_used) as total_bytes | predict total_bytes as prediction 
+
+timestamp=2023-10-21 14:15:23, cpu_usage=45, server_id="S12" 
+index="nexatech_system" | anomalousvalue action=annotate field=cpu_usage 
+
+
+
+
+

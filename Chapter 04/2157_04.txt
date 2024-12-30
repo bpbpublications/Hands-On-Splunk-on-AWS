@@ -1,0 +1,56 @@
+edit server.conf :
+[clustering]
+mode = manager
+replication_factor = 3
+search_factor = 3
+pass4SymmKey = whatever
+cluster_label = cluster1
+
+
+Modify the server.conf file located at $SPLUNK_HOME/etc/system/local on every peer node:
+[replication_port://9887]
+[clustering]
+manager_uri = <manager_node_IP>:8089
+mode = peer
+
+---------------------------------------
+
+site_replication_factor = origin:<n>, site1:<n1>, site2:<n2>, ..., total:<n>
+
+--------------------------------------
+
+Initialize as a search head cluster member:
+cd $SPLUNK_HOME/bin
+./splunk init shcluster-config -mgmt_uri https://<this_node_mgmt_URI>:8089 -replication_port <port> -replication_factor 2 -secret <your_secret>
+
+
+To bootstrap the captain dynamically, use this command on one SH instance:
+cd $SPLUNK_HOME/bin
+./splunk bootstrap shcluster-captain -servers_list \
+https://<sh1_mgmt_URI>:8089,https://<sh2_mgmt_URI>:8089,https://<sh3_mgmt_URI>:8089 -auth <username>:<password>
+
+
+manually assign a specific SH as the captain:
+cd $SPLUNK_HOME/bin
+./splunk edit shcluster-config -mgmt_uri https://<static_captain_URI>:8089 -auth <username>:<password>
+
+
+cd $SPLUNK_HOME /bin
+./splunk show shcluster-status 
+
+-------------------------------------------
+
+ssh -i "YourKeyPair.pem" ec2-user@your-search-head-instance-ip 
+cd $SPLUNK_HOME /bin
+./splunk edit cluster-config -mode searchhead -manager_uri https://< indexer-manager-node-ip>:8089 -secret < shared-secret> -auth login:< your_password>
+./splunk restart
+cd $SPLUNK_HOME /bin
+./splunk list shcluster-members 
+-----------------------------------------------
+
+
+splunk rolling-restart shcluster-members -number <n>
+
+./splunk enable maintenance-mode
+./splunk disable maintenance-mode
+

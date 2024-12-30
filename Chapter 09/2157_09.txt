@@ -1,0 +1,189 @@
+index=server_health source=ServerHealth_Logs.txt | eval CPU_USAGE = mvindex(split(CPU_USAGE,"%"),0)| stats avg(CPU_USAGE) as cpuUsage
+
+index=server_health source=ServerHealth_Logs.txt | eval MEMORY_CONSUMPTION= mvindex(split(MEMORY_CONSUMPTION,"%"),0)|timechart avg(MEMORY_CONSUMPTION) as MemoryConsumption
+
+index=server_health source=ServerHealth_Logs.txt | eval DISK_SPACE= mvindex(split(DISK_SPACE,"%"),0)| stats avg(DISK_SPACE) as DISK_SPACE
+
+index=web_traffic source=WebsiteTraffic_Logs.txt | timechart sum(VISITOR_COUNT) as visitorCount
+
+index=web_traffic source=WebsiteTraffic_Logs.txt | spath input=PAGE_VIEWS path=Home | spath input=PAGE_VIEWS path=Products | spath input=PAGE_VIEWS path=Blog | timechart sum(Home) as Home, sum(Products) as Products, sum(Blog) as Blog
+
+index=web_traffic source=WebsiteTraffic_Logs.txt | timechart avg(BOUNCE_RATE) as bounceRate
+
+index=sales_metrics source=SalesMetrics_Logs.txt | timechart sum(MONTHLY_SALES) as monthlySales
+
+index=sales_metrics source=SalesMetrics_Logs.txt | spath input=TOP_PRODUCTS path=Laptop | spath input=TOP_PRODUCTS path=Mouse | spath input=TOP_PRODUCTS path=Keyboard | timechart sum(Laptop) as Laptop, sum(Mouse) as Mouse, sum(Keyboard) as Keyboard
+
+index=sales_metrics source=SalesMetrics_Logs.txt | spath input=REGIONAL_SALES path=North | spath input=REGIONAL_SALES path=South | spath input=REGIONAL_SALES path=East | spath input=REGIONAL_SALES path=West | timechart sum(North) as North, sum(South) as South, sum(East) as East, sum(West) as West
+
+----------------------------
+{ "condition": "$value$ > 100", "format": { "color": "red" } } 
+{ "input_type": "dropdown", "token": "$selectedValue$", "search": "index=myindex | distinct fieldname" } \
+{ "refresh": "5m" }
+
+
+"options": {
+"majorColor": "> majorValue | rangeValue(majorColorEditorConfig)"
+},
+			"context": {
+				"majorColorEditorConfig": [
+					{
+						"to": 20,"value": "green"
+					},
+					{
+						"from": 20,"to": 40,"value": "#blue"
+					},
+					{
+						"from": 40,"to": 60,"value": "yellow"
+					},
+					{
+						"from": 60,"to": 80,"value": "#red"
+					},
+					{
+						"from": 80,"value": "#red"
+					}
+				]
+			}
+
+JSON for dropdown:
+
+{
+    "options": {
+        "items": [
+            {
+                "label": "All",
+                "value": "*"
+            },
+            {
+                "label": "North",
+                "value": "North"
+            },
+            {
+                "label": "West",
+                "value": "West"
+            },
+            {
+                "label": "East",
+                "value": "East"
+            },
+            {
+                "label": "South",
+                "value": "South"
+            }
+        ],
+        "defaultValue": "*",
+        "token": "selectedRegion"
+    },
+    "title": "Region",
+    "type": "input.dropdown"
+}
+
+--------------------------------
+
+Define a base search for all regions:
+		" baseSearch": {
+			"type": "ds.search",
+			"options": {
+				"query": "index=serverhealth"
+			},
+			"name": "baseSearch"
+		}
+
+
+refine the base search to display data based on a region:
+                                 {
+			"type": "ds.chain",
+			"options": {
+				"extend": " baseSearch",
+				"query": "| eval CPU_USAGE = mvindex(split(CPU_USAGE,\"%\"),0)| stats avg(CPU_USAGE) as cpuUsage"
+			},
+			"name": "SearchQuery"
+		}
+
+Use a saved search:
+
+		"baseSavedSearch": {
+			"type": "ds.savedSearch",
+			"options": {
+				"ref": "Current Time",
+				"refresh": "5s",
+				"refreshType": "interval"
+			}
+		},
+		"newSearch": {
+			"type": "ds.chain",
+			"options": {
+				"query": " | timechart avg(BOUNCE_RATE) as bounceRate",
+				"extend": " baseSavedSearch"
+			},
+			"name": "Bounce Rate"
+		}
+
+Dropdown for region selection:
+
+{
+    "options": {
+        "items": [
+            {
+                "label": "All",
+                "value": "*"
+            },
+            {
+                "label": "North",
+                "value": "North"
+            },
+            {
+                "label": "West",
+                "value": "West"
+            },
+            {
+                "label": "East",
+                "value": "East"
+            },
+            {
+                "label": "South",
+                "value": "South"
+            }
+        ],
+        "defaultValue": "*",
+        "token": "selectedRegion"
+    },
+    "title": "Region",
+    "type": "input.dropdown"
+}
+
+Text box for product search:
+
+{
+    "options": {
+        "defaultValue": "",
+        "token": "ProductToken"
+    },
+    "title": "Product",
+    "type": "input.text"
+}
+
+Time range selector:
+
+{
+    "type": "input.timerange",
+    "options": {
+        "token": "global_time",
+        "defaultValue": "-24h@h,now"
+    },
+    "title": "Global Time Range"
+}
+
+
+Filtering sales metrics by region:
+{ "type": "line", "data": { "search": "index=nexatech_data region=$selectedRegion$ | timechart sum(sales)" } } 
+
+Displaying product-specific data:
+{ "type": "table", "data": { "search": "index=nexatech_data product=$ProductToken$" } } 
+
+Deep dive on clicks:
+{ "type": "line", "data": { "search": "index=nexatech_data | timechart sum(sales)" }, "interaction": { "type": "click", "token": "monthToken" } } 
+----------------------------------------
+
+
+

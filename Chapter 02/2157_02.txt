@@ -1,0 +1,11 @@
+# Download the Splunk package (replace the URL with the exact URL of the Splunk package you want to download)
+wget -O splunk-9.x.x-xxxxxx-linux-2.6-x86_64.tgz 'https://www.splunk.com/en_us/download/splunk-enterprise.html' sudo dpkg -i splunk-9.x.x-xxxxxx-linux-2.6- x86_64.tgz
+
+
+# Extract the Splunk package
+tar -xzf splunk-9.x.x-xxxxxx-linux-2.6-x86_64.tgz 
+	
+# Start the Splunk server and follow the instructions to complete the setup
+cd splunk
+./splunk start --accept-license
+

@@ -1,0 +1,11 @@
+./splunk show shcluster-status
+
+splunk btool inputs list --debug | grep web_reviews 
+
+cat $SPLUNK_HOME/var/log/splunk/splunkd.log | grep "web_reviews" 
+
+splunk btool indexes list --debug | grep web_reviews_index 
+
+index="customer_reviews" "*error*" | stats count by product_id 
+
+index="customer_reviews" sourcetype="review_log" "error" | stats count by product_id 

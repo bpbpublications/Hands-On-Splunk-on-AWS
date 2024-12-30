@@ -1,0 +1,149 @@
+202.168.2.104 - - [23/Oct/2023:10:01:05 +0000] "GET /products/laptop.html HTTP/1.1" 200 5456 202.168.2.105 - - [23/Oct/2023:10:05:45 +0000] "GET /products/smartphone.html HTTP/1.1" 200 4521 
+202.168.2.104 - - [23/Oct/2023:10:10:15 +0000] "GET /products/headphones.html HTTP/1.1" 200 3412 
+
+
+index= web_user_engagement  sourcetype=nexatech_web_access earliest=-30d@h latest=@h | timechart count by product_name 
+
+-------------------------------------
+202.168.2.106 - - [23/Oct/2023:10:12:05 +0000] "GET /home.html HTTP/1.1" 200 2564 [Response Time: 150ms]
+202.168.2.107 - - [23/Oct/2023:10:15:25 +0000] "POST /checkout.html HTTP/1.1" 500 1212 [Response Time: 500ms]
+202.168.2.106 - - [23/Oct/2023:10:17:10 +0000] "GET /products.html HTTP/1.1" 200 3451 [Response Time: 100ms] 
+
+
+index = web_access  sourcetype=nexatech_web_server_logs earliest=-7d@h latest=@h | stats avg(Response_Time) as Average_Response_Time, perc95(Response_Time) as P95_Response_Time, perc99(Response_Time) as P99_Response_Time, count(eval((status == 500))) as Error_Count 
+
+--------------------------------------------
+Web traffic logs stored at web_traffic index:
+[22/Oct/2023:15:03:05] IP:202.168.1.101 URL:/products.html STATUS:200
+[22/Oct/2023:15:03:06] IP:202.168.1.105 URL:/about.html STATUS:200
+[22/Oct/2023:15:03:07] IP:202.168.1.110 URL:/contact.html STATUS:200
+Sales conversion logs stored at web_sales_conversion index:
+[22/Oct/2023:15:03:08] PRODUCT: Laptop BRAND: NexaTech QUANTITY: 3 STATUS: Purchased
+[22/Oct/2023:15:03:09] PRODUCT: Monitor BRAND: NexaTech QUANTITY: 2 STATUS: Purchased
+[22/Oct/2023:15:03:10] PRODUCT: Keyboard BRAND: NexaTech QUANTITY: 5 STATUS: Purchased	
+User behaviour logs stored at web_user_behavior index:
+[22/Oct/2023:15:03:11] USER_ID: U123 ACTION: Add to Cart PRODUCT: Laptop
+[22/Oct/2023:15:03:12] USER_ID: U124 ACTION: View PRODUCT: Monitor
+[22/Oct/2023:15:03:13] USER_ID: U125 ACTION: Checkout PRODUCT: Keyboard
+Error logs stored at web_error_logs index:
+[22/Oct/2023:15:03:14] ERROR_CODE: 404 URL: /product123.html
+[22/Oct/2023:15:03:15] ERROR_CODE: 500 URL: /checkout.html
+[22/Oct/2023:15:03:16] ERROR_CODE: 401 URL: /login.html
+Campaign logs stored at web_campaign_log index:
+[22/Oct/2023:15:03:17] CAMPAIGN: Summer Sale TRAFFIC_SPIKE: 25%
+[22/Oct/2023:15:03:18] CAMPAIGN: Winter Discount TRAFFIC_SPIKE: 20%
+[22/Oct/2023:15:03:19] CAMPAIGN: Fall Clearance TRAFFIC_SPIKE: 15%
+
+index = web_traffic sourcetype=nexatech_web_traffic | timechart count(URL) as Visits
+
+index = web_sales_conversion sourcetype=nexatech_sales_conversion | stats count by PRODUCT
+
+index = web_user_behavior sourcetype=nexatech_user_behavior | stats count by ACTION
+
+index = web_error_logs sourcetype=nexatech_error_logs | stats count(ERROR_CODE)
+
+index = web_campaign_log sourcetype=nexatech_campaign_log | timechart avg(TRAFFIC_SPIKE) as Effectiveness
+
+sourcetype=nexatech_web_access earliest=$time_token.earliest$
+
+-------------------------------------------
+2023-10-26 12:01:05, newUser, userID=4567, appVersion=1.0, device=iOS 
+2023-10-26 12:01:06, activeUser, userID=4568, appVersion=1.0, device=Android 
+2023-10-26 12:01:07, error, userID=4568, errorCode=500, errorMsg="Internal Server Error" ... 
+
+
+index = app_logs sourcetype=nexatech_app_logs 
+
+index = app_logs  sourcetype=nexatech_app_logs event=newUser | timechart count by device
+
+index = app_logs  sourcetype=nexatech_app_logs event=activeUser | timechart count by appVersion
+
+index = app_logs  sourcetype=nexatech_app_logs event=error | timechart count by errorCode
+
+-------------------------------------------
+
+<drilldown> <link target="_blank">/app/search/nexatech_product_views_detail?product=$click.name$</link> </drilldown> 
+
+<html> <style> .dashboard-row { background-color: #f4f4f4; } .dashboard-panel { border: 1px solid #ddd; padding: 10px; } </style> </html> 
+
+<drilldown> <link target="_blank">/app/search/nexatech_error_details?error=$click.name$</link> </drilldown> 
+
+-----------------------------------------
+
+2023-10-26 13:45:03 IP_ADDRESS GET /product/1234 200 1534 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/97.0.4692.99"
+2023-10-26 13:46:22 IP_ADDRESS GET /info/about 200 1123 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/86.0"
+2023-10-26 13:48:14 IP_ADDRESS POST /login 200 643 "Mozilla/5.0 (iPad; CPU OS 14_4_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
+2023-10-26 13:50:07 IP_ADDRESS GET /product/not-found 404 0 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/97.0.4692.99"
+2023-10-26 13:51:12 IP_ADDRESS GET /home 200 2187 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Safari/537.36"
+
+
+Base search setup:
+	<!-- Base Search 1 --> 
+	<search id="baseSearchTable">
+		<query>index=access_data| table status, useragent</query>
+		<earliest>-45d</earliest>
+		<latest>now</latest>
+	</search>
+	<!-- Base Search 2 -->
+	<search id="baseSearch">
+		<query>index=access_data</query>
+		<earliest>-45d</earliest>
+		<latest>now</latest>
+	</search>
+
+Panel for 404 errors:
+    <panel>
+      <title>404 Errors</title>
+      <single>
+        <search base="baseSearchTable">
+          <query>| search status=404| stats count</query>
+        </search>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+
+Browser type breakdown:
+    <panel>
+      <title>Browser Type Breakdown</title>
+      <chart>
+        <search base="baseSearchTable">
+          <query>| rex field=useragent "^(?&lt;browser_type&gt;.*?)\/" | stats count by browser_type</query>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+
+Hourly traffic insights:
+    <panel>
+      <title>Hourly Traffic Insights</title>
+      <chart>
+        <search base="baseSearch">
+          <query>| timechart span=1h count</query>
+        </search>
+      </chart>
+    </panel>
+
+
+
+<dashboard>
+	<label>NexaTech Web Server Analysis</label>
+	<!-- Base Search 1 -->
+	<search id="baseSearchTable">
+		<query>index=access_data| table status, useragent</query>
+		<earliest>-45d</earliest>
+		<latest>now</latest>
+	</search>
+	<!-- Base Search 2 -->
+	<search id="baseSearch">
+		<query>index=access_data</query>
+		<earliest>-45d</earliest>
+		<latest>now</latest>
+	</search>
+	<!-- 404 Errors Panel -->
+	<!-- Insert 404 Errors Panel XML Here -->
+	<!-- Browser Type Breakdown Panel -->
+	<!-- Insert Browser Type Breakdown Panel XML Here -->
+	<!-- Hourly Traffic Insights Panel -->
+	<!-- Insert Hourly Traffic Insights Panel XML Here -->
+</dashboard>

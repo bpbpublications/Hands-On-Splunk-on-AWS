@@ -1,0 +1,98 @@
+ssh -i /path/to/your/private-key.pem ec2-user@YOUR_EC2_PUBLIC_IP
+wget -O splunk-9.x.x-xxxxxx-linux-2.6-x86_64.tgz 'http://www.example.com/splunk-9.x.x-xxxxxx-linux-2.6-x86_64.tgz'
+tar -xzf splunk-9.x.x-xxxxxx-linux-2.6-x86_64.tgz
+cd splunk/bin 
+./splunk start --accept-license
+
+
+server.conf:
+sudo nano server.conf
+
+
+cd splunk/bin
+./splunk restart
+
+----------------------------------------
+
+wget --no-check-certificate -O splunkforwarder-9.x.x-xxxxxxxxxxxx-Linux-x86_64.tgz “https://download.splunk.com/products/universalforwarder/releases/9.1.1/linux/ splunkforwarder-9.x.x-xxxxxxxxxxxx-Linux-x86_64.tgz”
+
+tar -xzf splunkforwarder-9.x.x-xxxxxxxxxxxx-Linux-x86_64.tgz
+
+cd splunkforwarder/bin 
+./splunk start --accept-license
+
+cd splunkforwarder/etc/system/local/
+sudo nano outputs.conf
+
+[tcpout] 
+defaultGroup = default-autolb-group
+
+[tcpout:default-autolb-group] 
+server = YOUR_HEAVY_WEIGHT_FORWARDER_IP:9997
+
+cd splunkforwarder/bin/splunk restart
+
+inputs.conf file:
+[splunktcp://9997]
+disabled = false
+
+--------------------------------------
+
+cd splunk/etc/system/local/
+
+outputs.conf file:
+sudo nano outputs.conf
+[tcpout] 
+defaultGroup = default-autolb-group
+[tcpout:default-autolb-group] 
+server = YOUR_INDEXER_ IP:9997
+
+
+/splunk/bin/splunk enable app SplunkForwarder -auth admin:your_password
+cd splunkforwarder/bin/splunk restart
+
+
+cd splunk/etc/apps/search/local
+cat inputs.conf
+
+-------------------------------------
+
+cd splunk/etc/system/local/ 
+
+distsearch.conf  file:
+sudo nano distsearch.conf
+[distributedSearch] 
+servers = indexer_IP:8089
+
+
+server.conf on the search head:
+[general] 
+pass4SymmKey = YourSharedKey
+
+
+server.conf on each indexer:
+[general] 
+pass4SymmKey = YourSharedKey
+
+
+cd splunk/etc/auth/distServerKeys
+cat trusted.pem
+
+
+Edit/create trusted.pem:
+cd splunk/etc/auth/distServerKeys/
+mkdir SH01
+chmod 777 SH01
+cd SH01
+sudo nano trusted.pem
+splunk/bin/splunk restart
+
+
+index=_internal | stats count by host
+
+
+
+
+
+
+
