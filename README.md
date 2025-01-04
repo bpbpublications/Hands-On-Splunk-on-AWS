@@ -3,7 +3,7 @@
 Complete guide to deploying and administering Splunk for data analysis.
 
 This is the repository for [Hands-on Splunk on AWS
-](https://in.bpbonline.com/products/hands-on-splunk-on-aws?variant=46037411791086),published by BPB Publications.
+](https://bpbonline.com/products/hands-on-splunk-on-aws?variant=44322264088776),published by BPB Publications.
 
 <img src="9789365891096.jpg">
 
